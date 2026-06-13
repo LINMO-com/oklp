@@ -136,6 +136,28 @@ input,textarea{font-family:inherit;outline:none}
 .mc-btn-primary{padding:10px 22px;background:#1E90FF;color:#fff;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;justify-content:center;min-width:80px}
 .mc-btn-primary:hover{background:#1E7FBF;transform:translateY(-1px);box-shadow:0 4px 12px rgba(30,144,255,.3)}
 
+/* ====== 首页文档卡片 ====== */
+.hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.doc-card{background:#fff;padding:18px;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,.08);transition:all .2s;border:1px solid #e5e7eb;display:flex;flex-direction:column;gap:10px}
+.doc-card:hover{box-shadow:0 6px 24px rgba(0,0,0,.12);transform:translateY(-2px);border-color:#1E90FF}
+.dc-title{font-size:15px;font-weight:700;color:#1F2937;word-break:break-word;line-height:1.4;min-height:24px}
+.dc-meta{font-size:12px;color:#9CA3AF}
+.dc-actions{display:flex;gap:8px;margin-top:auto;padding-top:8px}
+.dc-btn{flex:1;padding:8px 10px;font-size:12px;border-radius:8px;border:none;cursor:pointer;text-decoration:none;text-align:center;font-weight:500;transition:all .2s;color:#fff;white-space:nowrap}
+.dc-btn:first-child{background:#1E90FF}
+.dc-btn:first-child:hover{background:#1E7FBF}
+.dc-btn:nth-child(2){background:linear-gradient(135deg,#667eea,#764ba2)}
+.dc-btn:nth-child(2):hover{opacity:.9}
+.dc-btn.dc-del{background:#FF6B6B}
+.dc-btn.dc-del:hover{background:#ef4444}
+.dc-btn:hover{transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.15)}
+
+@media(max-width:640px){
+  .grid{grid-template-columns:1fr}
+  .dc-btn{font-size:12px;padding:8px 6px}
+}
+
 /* ================ 文件上传时的悬浮面板 ================ */
 .float-panel{position:fixed;right:20px;top:80px;background:#fff;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.2);padding:14px;min-width:320px;max-width:380px;z-index:9999;max-height:70vh;overflow-y:auto}
 .fp-body{padding:4px 0}

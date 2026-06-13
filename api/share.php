@@ -61,7 +61,9 @@ body{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh
 .content p{margin:12px 0}
 .content img{max-width:100%;height:auto;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);margin:12px 0;display:block}
 .editor-video-wrap{margin:16px 0}
-.editor-video-wrap video{max-width:100%;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);display:block;margin:8px 0}
+.editor-video-wrap video{width:100%;max-height:420px;aspect-ratio:16/9;object-fit:cover;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);display:block;background:#000}
+.editor-video-wrap > div:first-child, .editor-video-wrap > span:first-child, .content > div > div:first-child{display:none !important}
+.editor-img{max-width:100%;max-height:600px;object-fit:contain;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);margin:12px 0;display:block}
 .editor-audio-wrap{margin:16px 0;padding:14px;background:#f8f9fa;border-radius:12px;display:flex;align-items:center;gap:12px}
 .editor-audio-wrap audio{flex:1;height:36px}
 .editor-img{max-width:100%;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);margin:12px 0;display:block}

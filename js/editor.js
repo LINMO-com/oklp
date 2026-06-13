@@ -136,9 +136,9 @@
   function insertFileIntoEditor(f){
     var html='';
     if(f.kind==='image'){
-      html='<div style="margin:14px 0;text-align:center"><img src="'+f.url+'" alt="'+esc(f.display_name)+'" class="editor-img" style="max-width:100%;max-height:600px;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);display:inline-block"><div style="font-size:12px;color:#999;margin-top:8px">'+esc(f.display_name)+'</div></div>';
+      html='<div style="margin:14px 0;text-align:center"><img src="'+f.url+'" alt="'+esc(f.display_name)+'" class="editor-img" style="max-width:100%;max-height:600px;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);display:inline-block"></div>';
     }else if(f.kind==='video'){
-      html='<div class="editor-video-wrap" style="margin:14px 0"><div style="font-size:12px;color:#999;margin-bottom:6px">'+esc(f.display_name)+'</div><video class="editor-video" src="'+f.url+'" controls preload="metadata" style="max-width:100%;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);display:block">您的浏览器不支持视频播放</video></div>';
+      html='<div class="editor-video-wrap" style="margin:14px 0"><video class="editor-video" src="'+f.url+'" controls preload="metadata" style="width:100%;max-width:100%;max-height:420px;aspect-ratio:16/9;object-fit:cover;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);display:block;background:#000">您的浏览器不支持视频播放</video></div>';
     }else if(f.kind==='audio'){
       html='<div class="editor-audio-wrap" style="margin:14px 0;padding:14px;background:#f8f9fa;border-radius:12px;display:flex;align-items:center;gap:12px"><span style="font-size:28px">🎵</span><div style="flex:1"><div style="font-size:12px;color:#333;font-weight:500;margin-bottom:4px">'+esc(f.display_name)+'</div><audio controls preload="none" style="width:100%;height:36px"><source src="'+f.url+'">您的浏览器不支持音频播放</audio></div></div>';
     }else if(f.kind==='app'){

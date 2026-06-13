@@ -95,7 +95,8 @@ if ($action === 'list') {
     if (!in_array($cat, $cats)) { http_response_code(400); exit; }
     $path = UP_DIR.'/'.$cat.'/'.$name;
     if (!file_exists($path)) { http_response_code(404); exit; }
-    $ext = pathinfo($name, PATHINFO_EXTENSION);
+
+    $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
     $mimeTypes = [
         'zip'=>'application/zip', 'rar'=>'application/x-rar-compressed', '7z'=>'application/x-7z-compressed',
         'apk'=>'application/vnd.android.package-archive', 'apks'=>'application/zip', 'xapk'=>'application/zip',
@@ -106,10 +107,45 @@ if ($action === 'list') {
         'txt'=>'text/plain', 'xlsx'=>'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'pptx'=>'application/vnd.openxmlformats-officedocument.presentationml.presentation'
     ];
-    header('Content-Type: ' . ($mimeTypes[$ext] ?? 'application/octet-stream'));
-    header('Content-Disposition: attachment; filename="' . parseName($name) . '"');
-    header('Content-Length: ' . filesize($path));
-    readfile($path);
+
+    $filesize = filesize($path);
+    $mimeType = $mimeTypes[$ext] ?? 'application/octet-stream';
+    $fileName = parseName($name);
+
+    header('Content-Type: ' . $mimeType);
+    header('Content-Disposition: attachment; filename="' . $fileName . '"');
+    header('Accept-Ranges: bytes');
+    header('Cache-Control: public, max-age=3600');
+
+    // --- 分块流式输出 + 断点续传 ---
+    if (isset($_SERVER['HTTP_RANGE']) && preg_match('/bytes=(\d*)-(\d*)/', $_SERVER['HTTP_RANGE'], $m)) {
+        $start = ($m[1] === '') ? 0 : intval($m[1]);
+        $end = ($m[2] === '') ? $filesize - 1 : intval($m[2]);
+        if ($start > $end || $start >= $filesize) { $start = 0; $end = $filesize - 1; }
+        $length = $end - $start + 1;
+        header('HTTP/1.1 206 Partial Content');
+        header('Content-Length: ' . $length);
+        header('Content-Range: bytes ' . $start . '-' . $end . '/' . $filesize);
+    } else {
+        $start = 0; $length = $filesize;
+        header('Content-Length: ' . $filesize);
+    }
+
+    $handle = fopen($path, 'rb');
+    if ($handle === false) { http_response_code(500); exit; }
+    fseek($handle, $start);
+
+    $chunkSize = 8192 * 16; // 128KB 块
+    $remaining = $length;
+
+    while ($remaining > 0 && !feof($handle)) {
+        $read = min($chunkSize, $remaining);
+        echo fread($handle, $read);
+        $remaining -= $read;
+        ob_flush();
+        flush();
+    }
+    fclose($handle);
     exit;
 } else {
     echo json_encode(['ok'=>false,'error'=>'无效操作']);

@@ -1,0 +1,12 @@
+runtime/
+cache/
+*.log
+uploads/*
+!uploads/.gitkeep
+config/database.php
+config/config.php
+.idea/
+.vscode/
+*.swp
+.DS_Store
+composer.phar

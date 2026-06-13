@@ -52,14 +52,14 @@
 <div class="modal" id="m-btn"><div class="modal-box">
   <div class="modal-hd"><h3>插入按钮</h3><button class="modal-close" data-close="m-btn">×</button></div>
   <div class="btn-opts" id="btn-opts">
-    <div class="btn-opt" data-style="primary"><div class="editor-btn-primary eb">按钮</div><div class="bl">主按钮</div></div>
-    <div class="btn-opt" data-style="outline"><div class="editor-btn-outline eb">按钮</div><div class="bl">边框</div></div>
-    <div class="btn-opt" data-style="dashed"><div class="editor-btn-dashed eb">按钮</div><div class="bl">虚线</div></div>
-    <div class="btn-opt" data-style="gradient"><div class="editor-btn-gradient eb">按钮</div><div class="bl">渐变</div></div>
-    <div class="btn-opt" data-style="rounded"><div class="editor-btn-rounded eb">按钮</div><div class="bl">圆角</div></div>
-    <div class="btn-opt" data-style="pill"><div class="editor-btn-pill eb">按钮</div><div class="bl">胶囊</div></div>
-    <div class="btn-opt" data-style="shadow"><div class="editor-btn-shadow eb">按钮</div><div class="bl">阴影</div></div>
-    <div class="btn-opt" data-style="glow"><div class="editor-btn-glow eb">按钮</div><div class="bl">发光</div></div>
+    <div class="btn-opt" data-style="primary"><div class="editor-btn-primary eb">按钮</div><div class="bl">深蓝</div></div>
+    <div class="btn-opt" data-style="outline"><div class="editor-btn-outline eb">按钮</div><div class="bl">液态玻璃</div></div>
+    <div class="btn-opt" data-style="dashed"><div class="editor-btn-dashed eb">按钮</div><div class="bl">暗黑虚线</div></div>
+    <div class="btn-opt" data-style="gradient"><div class="editor-btn-gradient eb">按钮</div><div class="bl">极光渐变</div></div>
+    <div class="btn-opt" data-style="rounded"><div class="editor-btn-rounded eb">按钮</div><div class="bl">薄荷绿</div></div>
+    <div class="btn-opt" data-style="pill"><div class="editor-btn-pill eb">按钮</div><div class="bl">高斯胶囊</div></div>
+    <div class="btn-opt" data-style="shadow"><div class="editor-btn-shadow eb">按钮</div><div class="bl">立体橙红</div></div>
+    <div class="btn-opt" data-style="glow"><div class="editor-btn-glow eb">按钮</div><div class="bl">霓虹发光</div></div>
   </div>
   <input class="in" id="btn-text" placeholder="按钮文字">
   <input class="in" id="btn-url" placeholder="跳转链接">

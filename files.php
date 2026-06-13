@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<nav class="nav"><a class="brand" href="index.php">云文档</a><div class="nav-links"><a href="index.php">文档</a></div></nav>
+<nav class="nav"><a class="brand" href="index.php">云文档</a><div class="nav-links"></div></nav>
 <main class="wrap">
   <header class="hd"><h1>文件管理</h1></header>
   <div class="upload-zone" id="up-zone">
@@ -40,6 +40,7 @@
   <div class="fp-body" id="fp-body"></div>
 </div>
 
+<script src="js/common.js"></script>
 <script src="js/files.js"></script>
 </body>
 </html>

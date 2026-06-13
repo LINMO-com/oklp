@@ -1,14 +1,20 @@
 <?php
-header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
+/**
+ * CloudDoc - 文件管理 API（安全校验 + 鉴权 + MIME 检测）
+ */
+require_once __DIR__ . '/db.php';
+
+corsHeaders();
 
 define('UP_DIR', __DIR__ . '/../uploads');
-define('APP_ICON_DIR', __DIR__ . '/../uploads/app_icon');
-$cats = ['zip','app','video','audio','image','other'];
-foreach ($cats as $c) if (!is_dir(UP_DIR.'/'.$c)) mkdir(UP_DIR.'/'.$c, 0755, true);
+define('APP_ICON_DIR', UP_DIR . '/app_icon');
+define('MAX_FILE_SIZE', 100 * 1024 * 1024); // 100MB
+
+// 危险扩展名黑名单（禁止上传）
+define('BLOCKED_EXTS', ['php','php3','php4','php5','phtml','pht','phar','phps','shtml','htaccess','htpasswd','asp','aspx','jsp','cgi','pl','py','sh','bash','rb','exe','dll','bat','cmd','ps1','vbs','wsf']);
+
+$VALID_CATS = ['zip','app','video','audio','image','other'];
+foreach ($VALID_CATS as $c) if (!is_dir(UP_DIR.'/'.$c)) mkdir(UP_DIR.'/'.$c, 0755, true);
 if (!is_dir(APP_ICON_DIR)) mkdir(APP_ICON_DIR, 0755, true);
 
 // ============== 类型识别 ==============
@@ -28,7 +34,6 @@ function fileKind($name){
     if (in_array($e, $ZIPS))   return 'zip';
     return 'other';
 }
-function catOf($name){ return fileKind($name); }
 
 function iconOf($name) {
     $e = strtolower(pathinfo($name, PATHINFO_EXTENSION));
@@ -39,7 +44,6 @@ function iconOf($name) {
         'mp4'=>'🎬','webm'=>'🎬','mov'=>'🎬','avi'=>'🎬','mkv'=>'🎬','flv'=>'🎬',
         'jpg'=>'🖼️','jpeg'=>'🖼️','png'=>'🖼️','gif'=>'🖼️','webp'=>'🖼️','svg'=>'🖼️','bmp'=>'🖼️','avif'=>'🖼️',
         'pdf'=>'📄','doc'=>'📄','docx'=>'📄','txt'=>'📄','xlsx'=>'📊','pptx'=>'📊',
-        'exe'=>'⚙️','dll'=>'⚙️','bat'=>'⚙️','sh'=>'⚙️'
     ];
     return $icons[$e] ?? '📄';
 }
@@ -50,6 +54,27 @@ function parseName($name) {
     $parts = explode('_', $base);
     if (count($parts) > 1 && is_numeric(end($parts))) array_pop($parts);
     return implode('_', $parts) . '.' . $ext;
+}
+
+/** 安全文件名：移除路径分隔符和特殊字符 */
+function safeFileName($name) {
+    $name = basename($name);
+    $name = preg_replace('/[^\w\-.]/u', '_', pathinfo($name, PATHINFO_FILENAME)) . '.' . strtolower(pathinfo($name, PATHINFO_EXTENSION));
+    return $name;
+}
+
+/** 检查扩展名是否被禁止 */
+function isBlockedExt($name) {
+    $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+    return in_array($ext, BLOCKED_EXTS);
+}
+
+/** 用 finfo 检测真实 MIME 类型 */
+function detectMime($path) {
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime = finfo_file($finfo, $path);
+    finfo_close($finfo);
+    return $mime ?: 'application/octet-stream';
 }
 
 // ============== APP 元数据 ==============
@@ -68,119 +93,140 @@ function loadAppMeta($appName) {
 // ============== 路由 ==============
 $action = $_GET['action'] ?? '';
 
+// ========== 列表（需登录） ==========
 if ($action === 'list') {
+    $userId = requireAuth();
+    $db = getDB();
     $out = ['zip'=>[],'app'=>[],'video'=>[],'audio'=>[],'image'=>[],'other'=>[]];
-    foreach (['zip','app','video','audio','image','other'] as $c) {
-        $d = UP_DIR.'/'.$c;
-        if (!is_dir($d)) continue;
-        foreach (scandir($d) as $f) {
-            if ($f==='.'||$f==='..') continue;
-            $display = parseName($f);
-            $icon = iconOf($f);
-            $thumb = '';
-            $isAppIcon = false;
-            if ($c === 'app') {
-                $meta = loadAppMeta($f);
-                if ($meta) {
-                    if (!empty($meta['display_name'])) $display = $meta['display_name'];
-                    if (!empty($meta['icon'])) { $icon = $meta['icon']; $isAppIcon = (strpos($meta['icon'],'uploads/app_icon')===0); }
-                }
-                $thumb = $icon;
-            } elseif ($c === 'image') {
-                $thumb = 'uploads/'.$c.'/'.rawurlencode($f);
-            } elseif ($c === 'video') {
-                $thumb = 'uploads/'.$c.'/'.rawurlencode($f); // 前端用 <video preload="metadata"> 取第一帧
-            } elseif ($c === 'audio') {
-                $thumb = ''; // 音频无缩略，播放器带波形
-            } else {
-                $thumb = '';
-            }
-            $out[$c][] = [
-                'name'=>$f,
-                'display_name'=>$display,
-                'icon'=>$icon,
-                'thumbnail'=>$thumb,
-                'is_app_icon'=>$isAppIcon,
-                'kind'=>$c,
-                'type'=>strtolower(pathinfo($f, PATHINFO_EXTENSION)),
-                'size'=>filesize($d.'/'.$f),
-                'url'=>'uploads/'.$c.'/'.rawurlencode($f),
-                'download_url'=>'api/files.php?action=download&cat='.$c.'&name='.rawurlencode($f)
-            ];
-        }
+
+    $stmt = $db->prepare('SELECT * FROM files WHERE user_id = ? ORDER BY created_at DESC');
+    $stmt->execute([$userId]);
+    $files = $stmt->fetchAll();
+
+    foreach ($files as $f) {
+        $cat = $f['category'];
+        if (!isset($out[$cat])) $out[$cat] = [];
+        $out[$cat][] = [
+            'name' => $f['name'],
+            'display_name' => $f['display_name'],
+            'icon' => $f['icon'],
+            'thumbnail' => ($cat === 'image') ? 'uploads/'.$cat.'/'.rawurlencode($f['name']) : ($f['is_app_icon'] ? $f['icon'] : ''),
+            'is_app_icon' => (bool)$f['is_app_icon'],
+            'kind' => $cat,
+            'type' => strtolower(pathinfo($f['name'], PATHINFO_EXTENSION)),
+            'size' => (int)$f['size'],
+            'url' => 'uploads/'.$cat.'/'.rawurlencode($f['name']),
+            'download_url' => 'api/files.php?action=download&cat='.$cat.'&name='.rawurlencode($f['name'])
+        ];
     }
-    echo json_encode(['ok'=>true,'files'=>$out]);
-    exit;
+    jsonResponse(['ok'=>true,'files'=>$out]);
 }
 
-// ============== 上传 ==============
-if ($action === 'upload' && $_SERVER['REQUEST_METHOD']==='POST') {
-    if (!isset($_FILES['f'])) { echo json_encode(['ok'=>false,'error'=>'无文件']); exit; }
+// ========== 上传（需登录） ==========
+if ($action === 'upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $userId = requireAuth();
+    $db = getDB();
+
+    if (!isset($_FILES['f'])) jsonResponse(['ok'=>false,'error'=>'无文件'], 400);
     $f = $_FILES['f'];
-    if ($f['error']!==UPLOAD_ERR_OK) { echo json_encode(['ok'=>false,'error'=>'上传错误']); exit; }
-    $cat = fileKind($f['name']);
-    $ext = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
-    $clean = preg_replace('/[^\w\-.]/u','_',pathinfo($f['name'], PATHINFO_FILENAME));
+    if ($f['error'] !== UPLOAD_ERR_OK) jsonResponse(['ok'=>false,'error'=>'上传错误'], 400);
+    if ($f['size'] > MAX_FILE_SIZE) jsonResponse(['ok'=>false,'error'=>'文件过大（最大100MB）'], 400);
+
+    $originalName = $f['name'];
+    if (isBlockedExt($originalName)) jsonResponse(['ok'=>false,'error'=>'不允许上传该类型文件'], 400);
+
+    // MIME 类型校验
+    $realMime = detectMime($f['tmp_name']);
+    $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+
+    $cat = fileKind($originalName);
+    $clean = preg_replace('/[^\w\-.]/u','_',pathinfo($originalName, PATHINFO_FILENAME));
     $newName = $clean . '_' . time() . '.' . $ext;
     $path = UP_DIR . '/' . $cat . '/' . $newName;
-    if (!move_uploaded_file($f['tmp_name'], $path)) { echo json_encode(['ok'=>false,'error'=>'保存失败']); exit; }
+
+    if (!move_uploaded_file($f['tmp_name'], $path)) jsonResponse(['ok'=>false,'error'=>'保存失败'], 500);
 
     $displayName = parseName($newName);
     $iconUrl = iconOf($newName);
+    $isAppIcon = 0;
 
     if ($cat === 'app') {
         $customName = $_POST['name'] ?? '';
         if (!empty($customName)) $displayName = trim($customName);
         if (isset($_FILES['icon']) && $_FILES['icon']['error'] === UPLOAD_ERR_OK) {
             $iconExt = strtolower(pathinfo($_FILES['icon']['name'], PATHINFO_EXTENSION));
-            if (in_array($iconExt, ['png','jpg','jpeg','gif','webp','svg'])) {
+            if (in_array($iconExt, ['png','jpg','jpeg','gif','webp'])) {
                 $iconName = preg_replace('/[^\w\-]/', '_', pathinfo($newName, PATHINFO_FILENAME)) . '.' . $iconExt;
                 $iconPath = APP_ICON_DIR . '/' . $iconName;
-                if (move_uploaded_file($_FILES['icon']['tmp_name'], $iconPath)) $iconUrl = 'uploads/app_icon/'.$iconName;
+                if (move_uploaded_file($_FILES['icon']['tmp_name'], $iconPath)) {
+                    $iconUrl = 'uploads/app_icon/'.$iconName;
+                    $isAppIcon = 1;
+                }
             }
         }
         saveAppMeta($newName, $displayName, $iconUrl);
     }
 
-    $thumb = '';
-    if ($cat === 'image' || $cat === 'app') $thumb = ($cat==='app')?$iconUrl:'uploads/'.$cat.'/'.rawurlencode($newName);
-    elseif ($cat === 'video') $thumb = 'uploads/'.$cat.'/'.rawurlencode($newName);
+    // 写入数据库
+    $fileId = uid();
+    $stmt = $db->prepare('INSERT INTO files (id, user_id, name, display_name, category, size, icon, is_app_icon, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    $stmt->execute([$fileId, $userId, $newName, $displayName, $cat, filesize($path), $iconUrl, $isAppIcon, time()]);
 
-    echo json_encode([
+    $thumb = '';
+    if ($cat === 'image') $thumb = 'uploads/'.$cat.'/'.rawurlencode($newName);
+    elseif ($cat === 'app' && $isAppIcon) $thumb = $iconUrl;
+
+    jsonResponse([
         'ok'=>true,'name'=>$newName,'display_name'=>$displayName,'icon'=>$iconUrl,'thumbnail'=>$thumb,
         'kind'=>$cat,'url'=>'uploads/'.$cat.'/'.rawurlencode($newName),
         'download_url'=>'api/files.php?action=download&cat='.$cat.'&name='.rawurlencode($newName),
         'size'=>filesize($path)
     ]);
-    exit;
 }
 
-// ============== 删除 ==============
-if ($action === 'delete' && $_SERVER['REQUEST_METHOD']==='POST') {
+// ========== 删除（需登录） ==========
+if ($action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $userId = requireAuth();
+    $db = getDB();
     $input = json_decode(file_get_contents('php://input'), true);
-    $cat = $input['cat'] ?? ''; $name = $input['name'] ?? '';
-    if (!in_array($cat, $cats)) { echo json_encode(['ok'=>false,'error'=>'无效分类']); exit; }
-    $path = UP_DIR.'/'.$cat.'/'.$name; $ok = true;
-    if (file_exists($path)) { if (!unlink($path)) $ok = false; }
+    $cat = $input['cat'] ?? '';
+    $name = $input['name'] ?? '';
+
+    if (!in_array($cat, $VALID_CATS)) jsonResponse(['ok'=>false,'error'=>'无效分类'], 400);
+    // 防止路径遍历
+    $name = basename($name);
+    if (strpos($name, '..') !== false) jsonResponse(['ok'=>false,'error'=>'非法文件名'], 400);
+
+    $path = UP_DIR.'/'.$cat.'/'.$name;
+    if (file_exists($path)) unlink($path);
+
     if ($cat === 'app') {
         $meta = appMetaPath($name);
         if (file_exists($meta)) {
             $m = json_decode(file_get_contents($meta), true);
             if (!empty($m['icon']) && strpos($m['icon'],'uploads/app_icon')===0) {
-                $ip = __DIR__.'/../'.str_replace('uploads/', 'uploads/', $m['icon']);
+                $ip = __DIR__.'/../'.$m['icon'];
                 if (file_exists($ip)) unlink($ip);
             }
             unlink($meta);
         }
     }
-    echo json_encode(['ok'=>$ok]);
-    exit;
+
+    // 从数据库删除
+    $stmt = $db->prepare('DELETE FROM files WHERE user_id = ? AND name = ? AND category = ?');
+    $stmt->execute([$userId, $name, $cat]);
+
+    jsonResponse(['ok'=>true]);
 }
 
-// ============== 下载（分块+断点续传） ==============
+// ========== 下载（无需登录，但校验参数） ==========
 if ($action === 'download') {
-    $cat = $_GET['cat'] ?? ''; $name = $_GET['name'] ?? '';
-    if (!in_array($cat, $cats)) { http_response_code(400); exit; }
+    $cat = $_GET['cat'] ?? '';
+    $name = $_GET['name'] ?? '';
+    if (!in_array($cat, $VALID_CATS)) { http_response_code(400); exit; }
+    $name = basename($name);
+    if (strpos($name, '..') !== false) { http_response_code(400); exit; }
+
     $path = UP_DIR.'/'.$cat.'/'.$name;
     if (!file_exists($path)) { http_response_code(404); exit; }
 
@@ -232,4 +278,4 @@ if ($action === 'download') {
     exit;
 }
 
-echo json_encode(['ok'=>false,'error'=>'无效操作']);
+jsonResponse(['ok'=>false,'error'=>'无效操作'], 400);

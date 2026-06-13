@@ -1,43 +1,42 @@
 <?php
-header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
+/**
+ * CloudDoc - 分享 API（XSS 防护 + 鉴权）
+ */
+require_once __DIR__ . '/db.php';
 
-define('DOC_DIR', __DIR__ . '/../data');
-define('SHARE_FILE', DOC_DIR . '/shares.json');
+corsHeaders();
+
 define('GEN_DIR', __DIR__ . '/../generated');
-
-if (!is_dir(DOC_DIR)) mkdir(DOC_DIR, 0755, true);
 if (!is_dir(GEN_DIR)) mkdir(GEN_DIR, 0755, true);
-if (!file_exists(SHARE_FILE)) file_put_contents(SHARE_FILE, json_encode([]));
-
-function uid() {
-    return sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-        mt_rand(0,0xffff), mt_rand(0,0xffff), mt_rand(0,0xffff),
-        mt_rand(0,0x0fff)|0x4000, mt_rand(0,0x3fff)|0x8000,
-        mt_rand(0,0xffff), mt_rand(0,0xffff), mt_rand(0,0xffff));
-}
 
 $action = $_GET['action'] ?? '';
 
-if ($action === 'create' || $action === 'share') {
-    $input = json_decode(file_get_contents('php://input'), true);
-    $id = $input['id'] ?? uid();
-    $title = $input['title'] ?? '无标题';
-    $html = $input['html'] ?? '';
-    $fname = 'doc_' . $id . '.html';
-    $path = GEN_DIR . '/' . $fname;
+// ========== 创建分享（需登录） ==========
+if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $userId = requireAuth();
+    $db = getDB();
 
-    // ========== 修正媒体路径：因为 HTML 文件保存在 /generated/ 下 ==========
-    // 1. 把 src="uploads/xxx" 改成 src="/uploads/xxx"
-    // 2. 把 href="uploads/xxx" 改成 href="/uploads/xxx"
-    // 3. 把 href="api/files.php" 改成 href="/api/files.php"
-    // 4. 把 style 里的 url(uploads/...) 改成 url(/uploads/...)
+    $input = json_decode(file_get_contents('php://input'), true);
+    $docId = $input['id'] ?? '';
+    $title = mb_substr(trim($input['title'] ?? ''), 0, 200) ?: '无标题';
+    $html = $input['html'] ?? '';
+
+    // 验证文档属于当前用户
+    $stmt = $db->prepare('SELECT id FROM documents WHERE id = ? AND user_id = ? AND deleted_at IS NULL');
+    $stmt->execute([$docId, $userId]);
+    if (!$stmt->fetch()) jsonResponse(['ok'=>false,'error'=>'文档不存在'], 404);
+
+    // XSS 过滤
+    $html = sanitizeHtml($html);
+
+    // 修正媒体路径
     $html = preg_replace('/(src|href|poster)\s*=\s*["\']uploads\//i', '$1="/uploads/', $html);
     $html = preg_replace('/(src|href|poster)\s*=\s*["\']api\//i', '$1="/api/', $html);
     $html = preg_replace('/url\(\s*["\']?uploads\//i', 'url(/uploads/', $html);
+
+    $shareId = uid();
+    $fname = 'doc_' . $shareId . '.html';
+    $path = GEN_DIR . '/' . $fname;
 
     $safeTitle = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
     $genTime = date('Y-m-d H:i:s');
@@ -62,11 +61,10 @@ body{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh
 .content img{max-width:100%;height:auto;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);margin:12px 0;display:block}
 .editor-video-wrap{margin:16px 0}
 .editor-video-wrap video{width:100%;max-height:420px;aspect-ratio:16/9;object-fit:cover;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);display:block;background:#000}
-.editor-video-wrap > div:first-child, .editor-video-wrap > span:first-child, .content > div > div:first-child{display:none !important}
+.editor-video-wrap > div:first-child,.editor-video-wrap > span:first-child,.content > div > div:first-child{display:none !important}
 .editor-img{max-width:100%;max-height:600px;object-fit:contain;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);margin:12px 0;display:block}
 .editor-audio-wrap{margin:16px 0;padding:14px;background:#f8f9fa;border-radius:12px;display:flex;align-items:center;gap:12px}
 .editor-audio-wrap audio{flex:1;height:36px}
-.editor-img{max-width:100%;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);margin:12px 0;display:block}
 .editor-btn{display:inline-block;padding:10px 22px;margin:4px;cursor:pointer;text-decoration:none;font-size:14px;border:none;transition:all .2s;font-weight:500}
 .editor-btn:hover{transform:translateY(-1px);opacity:.92}
 .editor-btn-primary{background:#1E90FF;color:#fff;border-radius:8px}
@@ -124,16 +122,13 @@ body{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh
 HTML;
 
     if (file_put_contents($path, $wrapped) === false) {
-        echo json_encode(['ok'=>false, 'error'=>'写入失败']);
-        exit;
+        jsonResponse(['ok'=>false, 'error'=>'写入失败'], 500);
     }
 
-    $shares = json_decode(file_get_contents(SHARE_FILE), true) ?: [];
-    $shares[$id] = ['id'=>$id, 'title'=>$title, 'html_file'=>$fname, 'time'=>time()];
-    file_put_contents(SHARE_FILE, json_encode($shares, JSON_UNESCAPED_UNICODE));
+    $stmt = $db->prepare('INSERT INTO shares (id, document_id, user_id, html_file, created_at) VALUES (?, ?, ?, ?, ?)');
+    $stmt->execute([$shareId, $docId, $userId, $fname, time()]);
 
-    echo json_encode(['ok'=>true, 'url'=>'generated/'.$fname, 'file'=>$fname]);
-    exit;
+    jsonResponse(['ok'=>true, 'url'=>'generated/'.$fname, 'file'=>$fname]);
 }
 
-echo json_encode(['ok'=>false, 'error'=>'无效操作']);
+jsonResponse(['ok'=>false, 'error'=>'无效操作'], 400);

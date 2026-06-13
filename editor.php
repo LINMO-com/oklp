@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<nav class="nav"><a class="brand" href="index.php">云文档</a><div class="nav-links"><a href="files.php">文件</a></div></nav>
+<nav class="nav"><a class="brand" href="index.php">云文档</a><div class="nav-links"></div></nav>
 <main class="wrap">
   <input type="text" id="doc-title" class="title" placeholder="请输入标题...">
   <div class="toolbar">
@@ -24,8 +24,10 @@
     <button class="tb" id="btn-ins-btn" title="插入按钮">🔘</button>
     <button class="tb" id="btn-ins-copy" title="复制框">📋</button>
     <button class="tb" id="btn-ins-file" title="插入文件">📎</button>
+    <button class="tb" id="btn-ins-image" title="上传图片">🖼️</button>
     <div class="right">
       <span class="status" id="status">0 字</span>
+      <span class="autosave-status" id="autosave-status"></span>
       <button class="btn-primary" id="btn-save">保存</button>
       <button class="btn-share" id="btn-share">分享</button>
     </div>
@@ -37,7 +39,7 @@
 <div class="modal" id="m-video"><div class="modal-box">
   <div class="modal-hd"><h3>插入视频</h3><button class="modal-close" data-close="m-video">×</button></div>
   <input class="in" id="video-url" placeholder="视频链接（支持 mp4/webm/mov）">
-  <p style="color:#888;font-size:12px;margin-bottom:12px;">💡 视频会自动预缓存，播放时无需等待</p>
+  <p style="color:#888;font-size:12px;margin-bottom:12px;">视频会自动预缓存，播放时无需等待</p>
   <button class="btn-primary" id="video-confirm" style="width:100%;margin-top:12px;">插入视频</button>
 </div></div>
 
@@ -96,6 +98,10 @@
   <button class="btn-primary" id="btn-copy-share" style="width:100%;margin-top:12px;">复制链接</button>
 </div></div>
 
+<!-- 隐藏的图片上传 input -->
+<input type="file" id="image-upload" accept="image/*" style="display:none">
+
+<script src="js/common.js"></script>
 <script src="js/editor.js"></script>
 </body>
 </html>

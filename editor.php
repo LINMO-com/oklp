@@ -78,9 +78,11 @@
   <div class="modal-hd"><h3>插入文件</h3><button class="modal-close" data-close="m-file">×</button></div>
   <div class="file-tabs" id="file-tabs">
     <button class="ft active" data-cat="all">全部</button>
-    <button class="ft" data-cat="zip">压缩包</button>
+    <button class="ft" data-cat="image">图片</button>
+    <button class="ft" data-cat="video">视频</button>
+    <button class="ft" data-cat="audio">音频</button>
     <button class="ft" data-cat="app">APP</button>
-    <button class="ft" data-cat="media">媒体</button>
+    <button class="ft" data-cat="zip">压缩包</button>
     <button class="ft" data-cat="other">其他</button>
   </div>
   <div class="file-list" id="file-list"></div>

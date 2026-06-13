@@ -30,6 +30,15 @@ if ($action === 'create' || $action === 'share') {
     $fname = 'doc_' . $id . '.html';
     $path = GEN_DIR . '/' . $fname;
 
+    // ========== 修正媒体路径：因为 HTML 文件保存在 /generated/ 下 ==========
+    // 1. 把 src="uploads/xxx" 改成 src="/uploads/xxx"
+    // 2. 把 href="uploads/xxx" 改成 href="/uploads/xxx"
+    // 3. 把 href="api/files.php" 改成 href="/api/files.php"
+    // 4. 把 style 里的 url(uploads/...) 改成 url(/uploads/...)
+    $html = preg_replace('/(src|href|poster)\s*=\s*["\']uploads\//i', '$1="/uploads/', $html);
+    $html = preg_replace('/(src|href|poster)\s*=\s*["\']api\//i', '$1="/api/', $html);
+    $html = preg_replace('/url\(\s*["\']?uploads\//i', 'url(/uploads/', $html);
+
     $safeTitle = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
     $genTime = date('Y-m-d H:i:s');
 

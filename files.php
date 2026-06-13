@@ -17,12 +17,16 @@
   </div>
   <input type="file" id="up-input" multiple style="display:none">
 
-  <h3 style="margin:24px 0 12px;">📦 压缩包</h3>
-  <div class="file-panel" id="list-zip"></div>
+  <h3 style="margin:24px 0 12px;">🖼️ 图片</h3>
+  <div class="file-panel" id="list-image"></div>
+  <h3 style="margin:24px 0 12px;">🎬 视频</h3>
+  <div class="file-panel" id="list-video"></div>
+  <h3 style="margin:24px 0 12px;">🎵 音频</h3>
+  <div class="file-panel" id="list-audio"></div>
   <h3 style="margin:24px 0 12px;">📱 APP</h3>
   <div class="file-panel" id="list-app"></div>
-  <h3 style="margin:24px 0 12px;">🎬 媒体</h3>
-  <div class="file-panel" id="list-media"></div>
+  <h3 style="margin:24px 0 12px;">📦 压缩包</h3>
+  <div class="file-panel" id="list-zip"></div>
   <h3 style="margin:24px 0 12px;">📄 其他</h3>
   <div class="file-panel" id="list-other"></div>
 </main>

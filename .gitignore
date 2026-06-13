@@ -1,0 +1,7 @@
+/data/*.json
+!/data/.gitkeep
+/generated/*.html
+!/generated/.gitkeep
+/uploads/*
+!/uploads/.gitkeep
+!/uploads/*/

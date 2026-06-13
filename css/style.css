@@ -138,6 +138,16 @@ body{font-family:"Microsoft YaHei","PingFang SC",-apple-system,sans-serif;backgr
 .s-body{font-size:16px;line-height:1.8;word-break:break-word;}
 .s-foot{margin-top:48px;padding-top:24px;border-top:1px solid #E5E7EB;text-align:center;color:#9CA3AF;font-size:12px;}
 
+/* APP 卡片样式（图片在左，下载按钮在右） */
+.app-card{display:flex;align-items:center;gap:16px;margin:10px 0;padding:14px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.08);background:#fff;}
+.ac-left{flex:0 0 auto;display:flex;align-items:center;justify-content:center;}
+.ac-center{flex:1;min-width:0;overflow:hidden;}
+.ac-name{font-size:15px;font-weight:600;color:#1F2937;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ac-size{font-size:12px;color:#9CA3AF;}
+.ac-right{flex:0 0 auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end;}
+.ac-btn{padding:8px 20px;font-size:13px;white-space:nowrap;}
+.fr-img-icon{width:56px;height:56px;border-radius:12px;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,.12);}
+
 /* 响应式 */
 @media(max-width:768px){
   .nav{padding:0 16px;}

@@ -6,8 +6,25 @@ header('Access-Control-Allow-Headers: Content-Type');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
 
 define('UP_DIR', __DIR__ . '/../uploads');
+define('APP_ICON_DIR', __DIR__ . '/../uploads/app_icon');
 $cats = ['zip','app','media','other'];
 foreach ($cats as $c) if (!is_dir(UP_DIR.'/'.$c)) mkdir(UP_DIR.'/'.$c, 0755, true);
+if (!is_dir(APP_ICON_DIR)) mkdir(APP_ICON_DIR, 0755, true);
+
+// === APP 元数据（名称+图标）存储 ===
+function appMetaPath($appName) {
+    $base = pathinfo($appName, PATHINFO_FILENAME);
+    return APP_ICON_DIR . '/' . preg_replace('/[^\w\-]/', '_', $base) . '.json';
+}
+function saveAppMeta($appName, $displayName, $iconFile) {
+    $path = appMetaPath($appName);
+    file_put_contents($path, json_encode(['display_name'=>$displayName, 'icon'=>$iconFile]));
+}
+function loadAppMeta($appName) {
+    $path = appMetaPath($appName);
+    if (!file_exists($path)) return null;
+    return json_decode(file_get_contents($path), true);
+}
 
 function catOf($name) {
     $e = strtolower(pathinfo($name, PATHINFO_EXTENSION));
@@ -50,13 +67,24 @@ if ($action === 'list') {
         $d = UP_DIR.'/'.$c;
         if (is_dir($d)) foreach (scandir($d) as $f) {
             if ($f==='.'||$f==='..') continue;
+            $display = parseName($f);
+            $icon = iconOf($f);
+            if ($c === 'app') {
+                $meta = loadAppMeta($f);
+                if ($meta) {
+                    if (!empty($meta['display_name'])) $display = $meta['display_name'];
+                    if (!empty($meta['icon'])) $icon = $meta['icon'];
+                }
+            }
             $out[$c][] = [
                 'name'=>$f,
-                'display_name'=>parseName($f),
-                'icon'=>iconOf($f),
+                'display_name'=>$display,
+                'icon'=>$icon,
+                'is_app_icon'=>($c==='app' && strpos($icon,'uploads/app_icon')===0),
                 'type'=>strtolower(pathinfo($f, PATHINFO_EXTENSION)),
                 'size'=>filesize($d.'/'.$f),
-                'url'=>'uploads/'.$c.'/'.rawurlencode($f)
+                'url'=>'uploads/'.$c.'/'.rawurlencode($f),
+                'download_url'=>'api/files.php?action=download&cat='.$c.'&name='.rawurlencode($f)
             ];
         }
     }
@@ -70,17 +98,38 @@ if ($action === 'list') {
     $clean = preg_replace('/[^\w\-.]/u','_',pathinfo($f['name'], PATHINFO_FILENAME));
     $newName = $clean . '_' . time() . '.' . $ext;
     $path = UP_DIR . '/' . $cat . '/' . $newName;
-    if (move_uploaded_file($f['tmp_name'], $path)) {
-        echo json_encode([
-            'ok'=>true,
-            'name'=>$newName,
-            'display_name'=>parseName($newName),
-            'icon'=>iconOf($newName),
-            'cat'=>$cat,
-            'url'=>'uploads/'.$cat.'/'.rawurlencode($newName),
-            'size'=>filesize($path)
-        ]);
-    } else { echo json_encode(['ok'=>false,'error'=>'保存失败']); }
+    if (!move_uploaded_file($f['tmp_name'], $path)) { echo json_encode(['ok'=>false,'error'=>'保存失败']); exit; }
+
+    $displayName = parseName($newName);
+    $iconUrl = iconOf($newName);
+
+    // === APP/APK 特殊处理：支持自定义名称+图片 ===
+    if ($cat === 'app') {
+        $customName = $_POST['name'] ?? '';
+        if (!empty($customName)) $displayName = trim($customName) . '.' . $ext;
+
+        if (isset($_FILES['icon']) && $_FILES['icon']['error'] === UPLOAD_ERR_OK) {
+            $iconExt = strtolower(pathinfo($_FILES['icon']['name'], PATHINFO_EXTENSION));
+            if (in_array($iconExt, ['png','jpg','jpeg','gif','webp','svg'])) {
+                $iconName = preg_replace('/[^\w\-]/', '_', pathinfo($newName, PATHINFO_FILENAME)) . '.' . $iconExt;
+                $iconPath = APP_ICON_DIR . '/' . $iconName;
+                if (move_uploaded_file($_FILES['icon']['tmp_name'], $iconPath)) {
+                    $iconUrl = 'uploads/app_icon/'.$iconName;
+                }
+            }
+        }
+        saveAppMeta($newName, $displayName, $iconUrl);
+    }
+
+    echo json_encode([
+        'ok'=>true,
+        'name'=>$newName,
+        'display_name'=>$displayName,
+        'icon'=>$iconUrl,
+        'cat'=>$cat,
+        'url'=>'uploads/'.$cat.'/'.rawurlencode($newName),
+        'size'=>filesize($path)
+    ]);
 } elseif ($action === 'delete' && $_SERVER['REQUEST_METHOD']==='POST') {
     $input = json_decode(file_get_contents('php://input'), true);
     $cat = $input['cat'] ?? '';

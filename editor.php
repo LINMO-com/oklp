@@ -19,6 +19,8 @@
     <button class="tb" data-cmd="justifyCenter" title="居中">↔</button>
     <button class="tb" data-cmd="justifyRight" title="右对齐">➡</button>
     <span class="sep"></span>
+    <button class="tb" id="btn-ins-video" title="插入视频">🎬</button>
+    <button class="tb" id="btn-ins-audio" title="插入音频">🎵</button>
     <button class="tb" id="btn-ins-btn" title="插入按钮">🔘</button>
     <button class="tb" id="btn-ins-copy" title="复制框">📋</button>
     <button class="tb" id="btn-ins-file" title="插入文件">📎</button>
@@ -30,6 +32,21 @@
   </div>
   <div id="editor" class="editor" contenteditable="true"></div>
 </main>
+
+<!-- 视频插入弹窗 -->
+<div class="modal" id="m-video"><div class="modal-box">
+  <div class="modal-hd"><h3>插入视频</h3><button class="modal-close" data-close="m-video">×</button></div>
+  <input class="in" id="video-url" placeholder="视频链接（支持 mp4/webm/mov）">
+  <p style="color:#888;font-size:12px;margin-bottom:12px;">💡 视频会自动预缓存，播放时无需等待</p>
+  <button class="btn-primary" id="video-confirm" style="width:100%;margin-top:12px;">插入视频</button>
+</div></div>
+
+<!-- 音频插入弹窗 -->
+<div class="modal" id="m-audio"><div class="modal-box">
+  <div class="modal-hd"><h3>插入音频</h3><button class="modal-close" data-close="m-audio">×</button></div>
+  <input class="in" id="audio-url" placeholder="音频链接（支持 mp3/wav/ogg）">
+  <button class="btn-primary" id="audio-confirm" style="width:100%;margin-top:12px;">插入音频</button>
+</div></div>
 
 <!-- 按钮插入弹窗 -->
 <div class="modal" id="m-btn"><div class="modal-box">

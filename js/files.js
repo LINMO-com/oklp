@@ -10,20 +10,18 @@
     var t=document.createElement('div');t.style.cssText='background:white;padding:12px 20px;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.15);display:flex;align-items:center;gap:10px;font-size:14px;border-left:4px solid '+colors[type];
     t.innerHTML='<span style="color:'+colors[type]+';font-weight:700">'+(type==='success'?'✓':type==='error'?'✗':'ℹ')+'</span><span>'+msg+'</span>';
     var c=document.getElementById('toast-container');
-    if(!c){c=document.createElement('div');c.id='toast-container';c.style.cssText='position:fixed;top:80px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px';document.body.appendChild(c);}
+    if(!c){c=document.createElement('div');c.style.cssText='position:fixed;top:80px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px';document.body.appendChild(c);}
     c.appendChild(t);setTimeout(function(){t.style.opacity='0';t.style.transition='opacity .3s';setTimeout(function(){t.remove();},300);},3000);
   }
   function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
   function fmtSize(b){if(b<1024)return b+' B';if(b<1024*1024)return (b/1024).toFixed(1)+' KB';return (b/1024/1024).toFixed(1)+' MB';}
 
-  // 上传触发
   zone.onclick=function(){input.click();};
   input.onchange=function(e){upload(e.target.files);input.value='';};
   zone.addEventListener('dragover',function(e){e.preventDefault();zone.classList.add('dragover');});
   zone.addEventListener('dragleave',function(){zone.classList.remove('dragover');});
   zone.addEventListener('drop',function(e){e.preventDefault();zone.classList.remove('dragover');upload(e.dataTransfer.files);});
 
-  // 悬浮窗关闭按钮 -> 缩成灵动岛
   document.getElementById('fp-close').onclick=function(){collapse();};
 
   function showFloat(items){
@@ -33,7 +31,6 @@
   }
   function collapse(){
     islandState='collapsed';fp.style.display='none';
-    // 统计
     var total=0,done=0,items=document.querySelectorAll('.fp-item');
     items.forEach(function(it){total++;if(it.dataset.done==='1')done++;});
     if(!island){
@@ -51,13 +48,21 @@
     if(!files||files.length===0)return;
     var items=[];
     for(var i=0;i<files.length;i++){
+      var icon=getFileIcon(files[i].name);
       var el=document.createElement('div');el.className='fp-item';el.dataset.done='0';
-      el.innerHTML='<div class="fp-row"><span class="fp-name" title="'+esc(files[i].name)+'">'+esc(files[i].name)+'</span><span class="fp-size">'+fmtSize(files[i].size)+'</span></div><div class="fp-bar"><div class="fp-fill"></div></div><div class="fp-status">等待中</div>';
+      el.innerHTML='<div class="fp-row"><span class="fp-icon">'+icon+'</span><span class="fp-name" title="'+esc(files[i].name)+'">'+esc(files[i].name)+'</span><span class="fp-size">'+fmtSize(files[i].size)+'</span></div><div class="fp-bar"><div class="fp-fill"></div></div><div class="fp-status">等待中</div>';
       items.push({el:el,file:files[i],fill:el.querySelector('.fp-fill'),status:el.querySelector('.fp-status')});
     }
     showFloat(items);
     doUpload(items,0);
   }
+
+  function getFileIcon(name){
+    var e=name.split('.').pop().toLowerCase();
+    var icons={'zip':'📦','rar':'📦','7z':'📦','tar':'📦','gz':'📦','apk':'📱','apks':'📱','xapk':'📱','ipa':'📱','mp3':'🎵','wav':'🎵','ogg':'🎵','m4a':'🎵','flac':'🎵','mp4':'🎬','webm':'🎬','mov':'🎬','avi':'🎬','mkv':'🎬','jpg':'🖼️','jpeg':'🖼️','png':'🖼️','gif':'🖼️','webp':'🖼️','svg':'🖼️','pdf':'📄','doc':'📄','docx':'📄','txt':'📄','xlsx':'📊','pptx':'📊','exe':'⚙️','dll':'⚙️','bat':'⚙️','sh':'⚙️'};
+    return icons[e]||'📄';
+  }
+
   function doUpload(items,idx){
     if(idx>=items.length){finish(items);return;}
     var it=items[idx];it.status.textContent='上传中...';it.status.style.color='#1E90FF';
@@ -81,11 +86,9 @@
     var ok=0;items.forEach(function(x){if(x.el.dataset.done==='1')ok++;});
     toast(ok+' 个文件上传成功','success');
     load();
-    // 3秒后收起为灵动岛（如果还展开）
     setTimeout(function(){if(islandState==='expanded')collapse();},2500);
   }
 
-  // 列表
   function load(){
     var x=new XMLHttpRequest();x.open('GET',API+'?action=list',true);
     x.onload=function(){
@@ -99,13 +102,14 @@
     var html='';
     for(var i=0;i<arr.length;i++){
       var cat=cid.replace('list-','');
-      html+='<div class="file-row"><span class="fr-ico">📄</span><span class="fr-name" title="'+esc(arr[i].name)+'">'+esc(arr[i].name)+'</span><span class="fr-size">'+fmtSize(arr[i].size)+'</span><a href="'+arr[i].url+'" class="fr-btn" download>下载</a><button class="fr-btn fr-del" data-cat="'+cat+'" data-name="'+esc(arr[i].name)+'">删除</button></div>';
+      var f=arr[i];
+      html+='<div class="file-row"><span class="fr-ico">'+f.icon+'</span><span class="fr-name" title="'+esc(f.display_name)+'">'+esc(f.display_name)+'</span><span class="fr-size">'+fmtSize(f.size)+'</span><a href="api/files.php?action=download&cat='+cat+'&name='+encodeURIComponent(f.name)+'" class="fr-btn" download>下载</a><button class="fr-btn fr-del" data-cat="'+cat+'" data-name="'+esc(f.name)+'">删除</button></div>';
     }
     c.innerHTML=html;
     c.querySelectorAll('.fr-del').forEach(function(b){b.onclick=function(){del(b.dataset.cat,b.dataset.name);};});
   }
   function del(cat,name){
-    if(!confirm('删除 '+name+'？'))return;
+    if(!confirm('删除文件？'))return;
     var x=new XMLHttpRequest();x.open('POST',API+'?action=delete',true);x.setRequestHeader('Content-Type','application/json');
     x.onload=function(){try{var d=JSON.parse(x.responseText);if(d.ok){toast('已删除','success');load();}else toast('失败','error');}catch(e){toast('数据错误','error');}};
     x.send(JSON.stringify({cat:cat,name:name}));

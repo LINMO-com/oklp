@@ -17,6 +17,30 @@ function catOf($name) {
     return 'other';
 }
 
+function iconOf($name) {
+    $e = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+    $icons = [
+        'zip'=>'📦','rar'=>'📦','7z'=>'📦','tar'=>'📦','gz'=>'📦',
+        'apk'=>'📱','apks'=>'📱','xapk'=>'📱','ipa'=>'📱',
+        'mp3'=>'🎵','wav'=>'🎵','ogg'=>'🎵','m4a'=>'🎵','flac'=>'🎵',
+        'mp4'=>'🎬','webm'=>'🎬','mov'=>'🎬','avi'=>'🎬','mkv'=>'🎬',
+        'jpg'=>'🖼️','jpeg'=>'🖼️','png'=>'🖼️','gif'=>'🖼️','webp'=>'🖼️','svg'=>'🖼️',
+        'pdf'=>'📄','doc'=>'📄','docx'=>'📄','txt'=>'📄','xlsx'=>'📊','pptx'=>'📊',
+        'exe'=>'⚙️','dll'=>'⚙️','bat'=>'⚙️','sh'=>'⚙️'
+    ];
+    return $icons[$e] ?? '📄';
+}
+
+function parseName($name) {
+    $ext = pathinfo($name, PATHINFO_EXTENSION);
+    $base = pathinfo($name, PATHINFO_FILENAME);
+    $parts = explode('_', $base);
+    if (count($parts) > 1 && is_numeric(end($parts))) {
+        array_pop($parts);
+    }
+    return implode('_', $parts) . '.' . $ext;
+}
+
 $action = $_GET['action'] ?? '';
 
 if ($action === 'list') {
@@ -26,7 +50,14 @@ if ($action === 'list') {
         $d = UP_DIR.'/'.$c;
         if (is_dir($d)) foreach (scandir($d) as $f) {
             if ($f==='.'||$f==='..') continue;
-            $out[$c][] = ['name'=>$f,'size'=>filesize($d.'/'.$f),'url'=>'uploads/'.$c.'/'.rawurlencode($f)];
+            $out[$c][] = [
+                'name'=>$f,
+                'display_name'=>parseName($f),
+                'icon'=>iconOf($f),
+                'type'=>strtolower(pathinfo($f, PATHINFO_EXTENSION)),
+                'size'=>filesize($d.'/'.$f),
+                'url'=>'uploads/'.$c.'/'.rawurlencode($f)
+            ];
         }
     }
     echo json_encode(['ok'=>true,'files'=>$out]);
@@ -40,7 +71,15 @@ if ($action === 'list') {
     $newName = $clean . '_' . time() . '.' . $ext;
     $path = UP_DIR . '/' . $cat . '/' . $newName;
     if (move_uploaded_file($f['tmp_name'], $path)) {
-        echo json_encode(['ok'=>true,'name'=>$newName,'cat'=>$cat,'url'=>'uploads/'.$cat.'/'.rawurlencode($newName),'size'=>filesize($path)]);
+        echo json_encode([
+            'ok'=>true,
+            'name'=>$newName,
+            'display_name'=>parseName($newName),
+            'icon'=>iconOf($newName),
+            'cat'=>$cat,
+            'url'=>'uploads/'.$cat.'/'.rawurlencode($newName),
+            'size'=>filesize($path)
+        ]);
     } else { echo json_encode(['ok'=>false,'error'=>'保存失败']); }
 } elseif ($action === 'delete' && $_SERVER['REQUEST_METHOD']==='POST') {
     $input = json_decode(file_get_contents('php://input'), true);
@@ -50,6 +89,28 @@ if ($action === 'list') {
     $path = UP_DIR.'/'.$cat.'/'.$name;
     if (file_exists($path) && unlink($path)) echo json_encode(['ok'=>true]);
     else echo json_encode(['ok'=>false,'error'=>'删除失败']);
+} elseif ($action === 'download') {
+    $cat = $_GET['cat'] ?? '';
+    $name = $_GET['name'] ?? '';
+    if (!in_array($cat, $cats)) { http_response_code(400); exit; }
+    $path = UP_DIR.'/'.$cat.'/'.$name;
+    if (!file_exists($path)) { http_response_code(404); exit; }
+    $ext = pathinfo($name, PATHINFO_EXTENSION);
+    $mimeTypes = [
+        'zip'=>'application/zip', 'rar'=>'application/x-rar-compressed', '7z'=>'application/x-7z-compressed',
+        'apk'=>'application/vnd.android.package-archive', 'apks'=>'application/zip', 'xapk'=>'application/zip',
+        'mp3'=>'audio/mpeg', 'wav'=>'audio/wav', 'ogg'=>'audio/ogg', 'm4a'=>'audio/mp4', 'flac'=>'audio/flac',
+        'mp4'=>'video/mp4', 'webm'=>'video/webm', 'mov'=>'video/quicktime', 'avi'=>'video/x-msvideo', 'mkv'=>'video/x-matroska',
+        'jpg'=>'image/jpeg', 'jpeg'=>'image/jpeg', 'png'=>'image/png', 'gif'=>'image/gif', 'webp'=>'image/webp', 'svg'=>'image/svg+xml',
+        'pdf'=>'application/pdf', 'doc'=>'application/msword', 'docx'=>'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'txt'=>'text/plain', 'xlsx'=>'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'pptx'=>'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+    ];
+    header('Content-Type: ' . ($mimeTypes[$ext] ?? 'application/octet-stream'));
+    header('Content-Disposition: attachment; filename="' . parseName($name) . '"');
+    header('Content-Length: ' . filesize($path));
+    readfile($path);
+    exit;
 } else {
     echo json_encode(['ok'=>false,'error'=>'无效操作']);
 }

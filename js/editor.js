@@ -48,11 +48,9 @@
     });
   }
 
-  // 关闭弹窗
   document.querySelectorAll('[data-close]').forEach(function(b){b.onclick=function(){document.getElementById(b.dataset.close).style.display='none';};});
   document.querySelectorAll('.modal').forEach(function(m){m.onclick=function(e){if(e.target===m)m.style.display='none';};});
 
-  // 插入按钮
   document.getElementById('btn-ins-btn').onclick=function(){document.getElementById('m-btn').style.display='flex';};
   document.querySelectorAll('#btn-opts .btn-opt').forEach(function(o){
     o.onclick=function(){document.querySelectorAll('#btn-opts .btn-opt').forEach(function(x){x.classList.remove('selected');});o.classList.add('selected');selBtnStyle=o.dataset.style;};
@@ -66,7 +64,6 @@
     document.getElementById('m-btn').style.display='none';document.getElementById('btn-text').value='';document.getElementById('btn-url').value='';
   };
 
-  // 复制框
   document.getElementById('btn-ins-copy').onclick=function(){document.getElementById('m-copy').style.display='flex';};
   document.getElementById('copy-confirm').onclick=function(){
     var content=document.getElementById('copy-text').value||'';if(!content.trim()){toast('请输入内容','warning');return;}
@@ -75,7 +72,6 @@
     document.getElementById('m-copy').style.display='none';document.getElementById('copy-text').value='';
   };
 
-  // 插入文件
   document.getElementById('btn-ins-file').onclick=function(){loadFiles();document.getElementById('m-file').style.display='flex';};
   var fileCat='all';var fileData=null;
   function loadFiles(){
@@ -89,7 +85,7 @@
     var box=document.getElementById('file-list');
     if(all.length===0){box.innerHTML='<div style="padding:20px;text-align:center;color:#999">暂无文件</div>';return;}
     var html='';
-    for(var i=0;i<all.length;i++){var f=all[i];html+='<div class="file-item"><div class="fi-ico">📄</div><div class="fi-info"><div class="fi-name">'+esc(f.name)+'</div><div class="fi-size">'+fmtSize(f.size)+'</div></div><button class="dc-btn" data-url="'+f.url+'" data-name="'+esc(f.name)+'">插入</button></div>';}
+    for(var i=0;i<all.length;i++){var f=all[i];html+='<div class="file-item"><div class="fi-ico">'+f.icon+'</div><div class="fi-info"><div class="fi-name">'+esc(f.display_name)+'</div><div class="fi-size">'+fmtSize(f.size)+'</div></div><button class="dc-btn" data-url="'+f.url+'" data-name="'+esc(f.display_name)+'">插入</button></div>';}
     box.innerHTML=html;
     box.querySelectorAll('.fi-ico').forEach(function(el){el.style.cssText='font-size:24px;padding:0 8px;';});
     box.querySelectorAll('.fi-info').forEach(function(el){el.style.cssText='flex:1;min-width:0;';});
@@ -100,13 +96,39 @@
   }
   document.querySelectorAll('#file-tabs .ft').forEach(function(b){b.onclick=function(){document.querySelectorAll('#file-tabs .ft').forEach(function(x){x.classList.remove('active');});b.classList.add('active');fileCat=b.dataset.cat;renderFiles();};});
 
-  // 分享复制
+  document.getElementById('btn-ins-video').onclick=function(){document.getElementById('m-video').style.display='flex';};
+  document.getElementById('video-confirm').onclick=function(){
+    var url=document.getElementById('video-url').value||'';
+    if(!url.trim()){toast('请输入视频链接','warning');return;}
+    var html='<video class="editor-video" src="'+esc(url)+'" controls preload="metadata" style="max-width:100%;border-radius:8px;margin:8px 0;">您的浏览器不支持视频播放</video>';
+    editor.focus();document.execCommand('insertHTML',false,html);
+    document.getElementById('m-video').style.display='none';document.getElementById('video-url').value='';
+    toast('视频已插入，将在播放时自动预缓存','info');
+  };
+
+  document.getElementById('btn-ins-audio').onclick=function(){document.getElementById('m-audio').style.display='flex';};
+  document.getElementById('audio-confirm').onclick=function(){
+    var url=document.getElementById('audio-url').value||'';
+    if(!url.trim()){toast('请输入音频链接','warning');return;}
+    var html='<audio class="editor-audio" src="'+esc(url)+'" controls style="width:100%;margin:8px 0;">您的浏览器不支持音频播放</audio>';
+    editor.focus();document.execCommand('insertHTML',false,html);
+    document.getElementById('m-audio').style.display='none';document.getElementById('audio-url').value='';
+  };
+
   document.getElementById('btn-copy-share').onclick=function(){var inp=document.getElementById('share-url');inp.select();try{document.execCommand('copy');toast('已复制','success');}catch(e){toast('复制失败','warning');}};
 
-  // 点击编辑器内按钮/复制框
   editor.addEventListener('click',function(e){
     var cb=e.target.closest('.editor-copy-box');if(cb){e.preventDefault();var t=cb.getAttribute('data-copy-content')||cb.textContent;if(navigator.clipboard)navigator.clipboard.writeText(t).then(function(){toast('已复制','success');});else{var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast('已复制','success');}catch(err){}document.body.removeChild(ta);}}
     var btn=e.target.closest('.editor-btn');if(btn){e.preventDefault();var u=btn.getAttribute('data-url')||btn.getAttribute('href');if(u&&u!=='#')window.open(u,'_blank');}
+    var video=e.target.closest('.editor-video');if(video&&video.paused){preCacheVideo(video.src);}
   });
+
+  function preCacheVideo(url){
+    var x=new XMLHttpRequest();x.open('GET',url,true);x.responseType='blob';
+    x.onprogress=function(e){if(e.lengthComputable){var p=Math.round((e.loaded/e.total)*100);console.log('视频预缓存: '+p+'%');}};
+    x.onload=function(){if(x.status===200){toast('视频预缓存完成','success');}};
+    x.send();
+  }
+
   updateStatus();
 })();
